@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>露營裝備清單 🏕️</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Space+Grotesk:wght@500;700&display=swap');
+
+  :root {
+    --forest: #1a2e1a; --moss: #2d4a2d; --fern: #4a7c59;
+    --sage: #7aad8a; --cream: #f5f0e8; --fire: #e8841a;
+    --gold: #f0b840; --red: #c84040;
+    --smoke: rgba(255,255,255,0.08); --shadow: rgba(0,0,0,0.3);
+  }
+
+  * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+
+  body {
+    font-family:'Noto Sans TC',sans-serif;
+    background:var(--forest); color:var(--cream);
+    min-height:100vh; padding-bottom:100px;
+    background-image:
+      radial-gradient(ellipse at 20% 0%,rgba(74,124,89,.3) 0%,transparent 50%),
+      radial-gradient(ellipse at 80% 100%,rgba(200,98,26,.2) 0%,transparent 50%);
+  }
+
+  /* Header */
+  .header {
+    background:linear-gradient(135deg,var(--moss),var(--forest));
+    border-bottom:2px solid var(--fern);
+    padding:20px 16px 14px; position:sticky; top:0; z-index:100;
+    box-shadow:0 4px 20px var(--shadow);
+  }
+  .header-top { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; }
+  .title-block h1 { font-size:22px; font-weight:900; color:var(--gold); line-height:1.2; }
+  .title-block p  { font-size:11px; color:var(--sage); margin-top:3px; letter-spacing:.05em; }
+
+  .progress-circle {
+    width:52px; height:52px; border-radius:50%;
+    background:conic-gradient(var(--gold) 0deg,rgba(255,255,255,.1) 0deg);
+    display:flex; align-items:center; justify-content:center;
+    position:relative; transition:background .3s;
+  }
+  .progress-circle::before { content:''; position:absolute; inset:6px; border-radius:50%; background:var(--forest); }
+  .progress-pct { font-family:'Space Grotesk',sans-serif; font-size:12px; font-weight:700; color:var(--gold); position:relative; z-index:1; }
+
+  .stats-bar { display:flex; gap:8px; }
+  .stat { flex:1; background:var(--smoke); border:1px solid rgba(122,173,138,.2); border-radius:8px; padding:6px 10px; text-align:center; }
+  .stat-num { font-family:'Space Grotesk',sans-serif; font-size:16px; font-weight:700; color:var(--sage); }
+  .stat-label { font-size:9px; color:rgba(245,240,232,.5); margin-top:1px; }
+
+  /* Filter */
+  .filter-bar { display:flex; gap:6px; padding:12px 16px; overflow-x:auto; scrollbar-width:none; }
+  .filter-bar::-webkit-scrollbar { display:none; }
+  .filter-btn {
+    flex-shrink:0; padding:6px 14px; border-radius:20px;
+    border:1px solid rgba(122,173,138,.3); background:transparent;
+    color:var(--sage); font-size:12px; font-family:'Noto Sans TC',sans-serif;
+    cursor:pointer; transition:all .2s; white-space:nowrap;
+  }
+  .filter-btn.active { background:var(--fern); border-color:var(--fern); color:var(--cream); font-weight:700; }
+
+  /* Sections */
+  .section { margin:0 12px 12px; border-radius:14px; overflow:hidden; border:1px solid rgba(122,173,138,.15); }
+  .section-header {
+    display:flex; align-items:center; gap:10px; padding:12px 16px;
+    cursor:pointer; user-select:none; position:relative;
+  }
+  .section-header::after { content:'›'; position:absolute; right:16px; font-size:18px; color:var(--sage); transition:transform .3s; transform:rotate(90deg); }
+  .section.collapsed .section-header::after { transform:rotate(0deg); }
+  .section-emoji { font-size:20px; line-height:1; }
+  .section-title { font-size:14px; font-weight:700; letter-spacing:.03em; }
+  .section-count { margin-left:auto; margin-right:24px; font-size:11px; font-family:'Space Grotesk',sans-serif; color:var(--sage); background:rgba(122,173,138,.15); padding:2px 8px; border-radius:10px; }
+  .section-body { overflow:hidden; transition:max-height .3s ease; }
+  .section.collapsed .section-body { max-height:0 !important; }
+
+  /* Item wrap for swipe */
+  .item-wrap { position:relative; overflow:hidden; border-top:1px solid rgba(255,255,255,.05); }
+  .delete-bg {
+    position:absolute; right:0; top:0; bottom:0; width:80px;
+    background:var(--red); display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:11px; font-weight:700; flex-direction:column; gap:2px;
+    opacity:0; pointer-events:none; transition:opacity .1s;
+  }
+  .delete-bg.show { opacity:1; }
+
+  /* Item row */
+  .item {
+    display:flex; align-items:center; gap:12px; padding:12px 16px;
+    cursor:pointer; transition:transform .2s ease; background:transparent;
+    position:relative; z-index:1; touch-action:pan-y;
+  }
+
+  .checkbox {
+    width:22px; height:22px; border-radius:6px;
+    border:2px solid rgba(122,173,138,.4); flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    transition:all .2s; background:transparent;
+  }
+  .item.checked .checkbox { background:var(--fern); border-color:var(--fern); }
+  .checkmark { width:10px; height:7px; border-left:2px solid white; border-bottom:2px solid white; transform:rotate(-45deg) translateY(-1px); opacity:0; transition:opacity .15s; }
+  .item.checked .checkmark { opacity:1; }
+
+  .item-info { flex:1; min-width:0; }
+  .item-name { font-size:14px; font-weight:500; line-height:1.3; transition:color .2s; }
+  .item.checked .item-name { color:rgba(245,240,232,.4); text-decoration:line-through; }
+  .item-note { font-size:11px; color:rgba(245,240,232,.45); margin-top:2px; }
+
+  .priority { font-size:10px; padding:2px 7px; border-radius:10px; font-weight:700; flex-shrink:0; letter-spacing:.03em; }
+  .priority-必備 { background:rgba(200,98,26,.25); color:var(--fire); border:1px solid rgba(200,98,26,.4); }
+  .priority-建議 { background:rgba(74,124,89,.25); color:var(--sage); border:1px solid rgba(74,124,89,.4); }
+  .priority-可選 { background:rgba(255,255,255,.07); color:rgba(245,240,232,.5); border:1px solid rgba(255,255,255,.1); }
+
+  .del-btn {
+    flex-shrink:0; width:28px; height:28px; border-radius:50%;
+    border:none; background:rgba(200,64,64,.2); color:#e07070;
+    font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    transition:background .2s; line-height:1; font-weight:300;
+  }
+  .del-btn:active { background:rgba(200,64,64,.5); }
+
+  /* Add row inside section */
+  .add-item-row {
+    display:flex; align-items:center; gap:10px; padding:11px 16px;
+    border-top:1px solid rgba(255,255,255,.05); cursor:pointer;
+    color:rgba(122,173,138,.55); font-size:13px; transition:color .2s;
+  }
+  .add-item-row:active { color:var(--sage); }
+  .add-plus { font-size:20px; line-height:1; }
+
+  /* Category colors */
+  .cat-sleep    { background:linear-gradient(135deg,#1a3a2a,#1a2e1a); }
+  .cat-electric { background:linear-gradient(135deg,#1a2a3a,#1a2030); }
+  .cat-food     { background:linear-gradient(135deg,#3a1a0a,#2a1a10); }
+  .cat-cook     { background:linear-gradient(135deg,#3a2a0a,#2a2010); }
+  .cat-safety   { background:linear-gradient(135deg,#3a1a1a,#2a1515); }
+  .cat-misc     { background:linear-gradient(135deg,#2a1a3a,#201530); }
+  .cat-sleep    .section-title { color:var(--sage); }
+  .cat-electric .section-title { color:#7ab8d4; }
+  .cat-food     .section-title { color:var(--fire); }
+  .cat-cook     .section-title { color:var(--gold); }
+  .cat-safety   .section-title { color:#d47a7a; }
+  .cat-misc     .section-title { color:#b87ad4; }
+
+  /* FAB */
+  .fab {
+    position:fixed; bottom:24px; right:20px; z-index:200;
+    width:56px; height:56px; border-radius:50%;
+    background:linear-gradient(135deg,var(--fern),#2d6a45);
+    border:none; color:#fff; font-size:28px; cursor:pointer;
+    box-shadow:0 6px 20px rgba(0,0,0,.4);
+    display:flex; align-items:center; justify-content:center;
+    transition:transform .2s;
+  }
+  .fab:active { transform:scale(.9); }
+
+  /* Modal */
+  .modal-overlay {
+    position:fixed; inset:0; z-index:300;
+    background:rgba(0,0,0,.65); backdrop-filter:blur(4px);
+    display:flex; align-items:flex-end; justify-content:center;
+    opacity:0; pointer-events:none; transition:opacity .25s;
+  }
+  .modal-overlay.open { opacity:1; pointer-events:auto; }
+  .modal {
+    background:linear-gradient(160deg,#243a24,#1a2e1a);
+    border:1px solid rgba(122,173,138,.25); border-radius:20px 20px 0 0;
+    padding:24px 20px 44px; width:100%; max-width:480px;
+    transform:translateY(100%); transition:transform .3s ease;
+  }
+  .modal-overlay.open .modal { transform:translateY(0); }
+
+  .modal-title { font-size:17px; font-weight:900; color:var(--gold); margin-bottom:18px; }
+  .modal label { font-size:12px; color:var(--sage); display:block; margin-bottom:5px; }
+  .modal input, .modal select, .modal textarea {
+    width:100%; background:rgba(255,255,255,.07);
+    border:1px solid rgba(122,173,138,.25); border-radius:10px;
+    color:var(--cream); font-family:'Noto Sans TC',sans-serif;
+    font-size:14px; padding:10px 14px; margin-bottom:14px;
+    outline:none; transition:border-color .2s; appearance:none;
+  }
+  .modal input:focus, .modal select:focus, .modal textarea:focus { border-color:var(--fern); }
+  .modal select option { background:#243a24; }
+  .modal textarea { resize:none; height:62px; }
+  .modal-row { display:flex; gap:10px; }
+  .modal-row > div { flex:1; }
+
+  .modal-btns { display:flex; gap:10px; margin-top:4px; }
+  .btn-cancel {
+    flex:1; padding:13px; border-radius:12px;
+    border:1px solid rgba(122,173,138,.3); background:transparent;
+    color:var(--sage); font-family:'Noto Sans TC',sans-serif; font-size:14px; cursor:pointer;
+  }
+  .btn-confirm {
+    flex:2; padding:13px; border-radius:12px; border:none;
+    background:var(--fern); color:#fff;
+    font-family:'Noto Sans TC',sans-serif; font-size:14px; font-weight:700; cursor:pointer;
+    transition:background .2s;
+  }
+  .btn-confirm:active { background:#3a6a48; }
+
+  .reset-btn {
+    display:block; margin:16px auto 0; padding:10px 28px;
+    background:transparent; border:1px solid rgba(122,173,138,.35); border-radius:20px;
+    color:var(--sage); font-family:'Noto Sans TC',sans-serif; font-size:13px; cursor:pointer;
+  }
+  .reset-btn:active { background:rgba(122,173,138,.1); }
+
+  .swipe-hint { text-align:center; font-size:10px; color:rgba(245,240,232,.2); padding:6px 0 14px; letter-spacing:.04em; }
+
+  .item-wrap.hidden { display:none; }
+  .section.all-hidden { display:none; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div class="title-block">
+      <h1>🏕️ 露營裝備清單</h1>
+      <p>電車露營 × 車床睡眠 × 火烤二吃</p>
+    </div>
+    <div class="progress-block">
+      <div class="progress-circle" id="progressCircle">
+        <span class="progress-pct" id="progressPct">0%</span>
+      </div>
+    </div>
+  </div>
+  <div class="stats-bar">
+    <div class="stat"><div class="stat-num" id="statTotal">0</div><div class="stat-label">總項目</div></div>
+    <div class="stat"><div class="stat-num" id="statChecked">0</div><div class="stat-label">已備妥</div></div>
+    <div class="stat"><div class="stat-num" id="statLeft">0</div><div class="stat-label">待準備</div></div>
+  </div>
+</div>
+
+<div class="filter-bar">
+  <button class="filter-btn active" onclick="filterItems('全部')">全部</button>
+  <button class="filter-btn" onclick="filterItems('必備')">🔴 必備</button>
+  <button class="filter-btn" onclick="filterItems('建議')">🟢 建議</button>
+  <button class="filter-btn" onclick="filterItems('可選')">⚪ 可選</button>
+</div>
+
+<div id="categories"></div>
+<p class="swipe-hint">← 左滑項目可快速刪除</p>
+<button class="reset-btn" onclick="resetChecks()">↺ 重置所有勾選</button>
+
+<button class="fab" onclick="openModal(null)">＋</button>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modalBox">
+    <div class="modal-title" id="modalTitle">➕ 新增裝備</div>
+    <label>裝備名稱 *</label>
+    <input type="text" id="inputName" placeholder="例：防曬乳" maxlength="40">
+    <div class="modal-row">
+      <div>
+        <label>分類</label>
+        <select id="inputCat"></select>
+      </div>
+      <div>
+        <label>重要性</label>
+        <select id="inputPriority">
+          <option value="必備">🔴 必備</option>
+          <option value="建議" selected>🟢 建議</option>
+          <option value="可選">⚪ 可選</option>
+        </select>
+      </div>
+    </div>
+    <label>備註（選填）</label>
+    <textarea id="inputNote" placeholder="例：防水、SPF50+"></textarea>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal()">取消</button>
+      <button class="btn-confirm" onclick="submitItem()">確認新增</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Default data ──────────────────────────────────────────────
+const DEFAULT = [
+  { id:'sleep', cat:'cat-sleep', emoji:'🚗', title:'車內睡眠系統', items:[
+    { name:'充氣床墊', note:'量好車內尺寸，SUV / 後座放平用', priority:'必備', checked:false },
+    { name:'打氣泵浦（充電式）', note:'電動充氣，省力又快', priority:'必備', checked:false },
+    { name:'睡袋 或 棉被', note:'山區夜間溫差大，建議備棉被', priority:'必備', checked:false },
+    { name:'枕頭', note:'充氣枕頭省空間', priority:'建議', checked:false },
+    { name:'車窗遮陽隔熱板', note:'防露水、保隱私、隔光', priority:'必備', checked:false },
+    { name:'車窗紗網 / 防蟲網', note:'開窗通風又防蚊蟲', priority:'建議', checked:false },
+    { name:'薄毯 / 旅行毯', note:'入睡後溫度下降備用', priority:'建議', checked:false },
+  ]},
+  { id:'electric', cat:'cat-electric', emoji:'⚡', title:'電力與照明', items:[
+    { name:'行動電源（大容量）', note:'手機、燈具補電用', priority:'必備', checked:false },
+    { name:'延長線 / 多孔插座', note:'電車有 110V 插座的話必備', priority:'建議', checked:false },
+    { name:'露營燈（LED）', note:'車外照明或車內懸掛', priority:'必備', checked:false },
+    { name:'頭燈', note:'夜間廁所行走、起火必備', priority:'必備', checked:false },
+    { name:'小型USB風扇', note:'通風悶熱時用', priority:'建議', checked:false },
+    { name:'手電筒備用', note:'應急備用', priority:'可選', checked:false },
+  ]},
+  { id:'food', cat:'cat-food', emoji:'🥩', title:'火烤二吃食材', items:[
+    { name:'牛肉片 / 板腱 / 肋眼', note:'涮涮鍋 + 直烤兩用', priority:'必備', checked:false },
+    { name:'豬五花肉片', note:'烤肉定番，CP值高', priority:'必備', checked:false },
+    { name:'雞腿排 / 雞翅', note:'醃漬好帶去，直接烤', priority:'建議', checked:false },
+    { name:'海鮮（蝦、魷魚、蛤蜊）', note:'錫箔紙包烤或煮湯底', priority:'建議', checked:false },
+    { name:'玉米、杏鮑菇、甜椒', note:'烤蔬菜配肉', priority:'必備', checked:false },
+    { name:'豆腐、貢丸、蔬菜包', note:'涮鍋配料', priority:'建議', checked:false },
+    { name:'昆布', note:'Vicki 帶，可當湯底', priority:'建議', checked:false },
+    { name:'肉鬆', note:'Vicki 帶', priority:'建議', checked:false },
+    { name:'鍋底', note:'Vicki 帶，涮鍋湯底用', priority:'必備', checked:false },
+    { name:'地瓜 x4', note:'Kyle 帶，烤地瓜收尾超讚', priority:'建議', checked:false },
+    { name:'土豆麵筋 + 脆瓜', note:'Kyle 帶，配飯小菜', priority:'建議', checked:false },
+    { name:'洋芋片 x2包', note:'Kyle 帶，休閒零食', priority:'可選', checked:false },
+    { name:'鯖魚罐頭', note:'Vicki 帶，備用食材', priority:'建議', checked:false },
+    { name:'蘋果西打', note:'Vicki 帶', priority:'建議', checked:false },
+    { name:'拉麵 / 冬粉', note:'用湯底煮，收尾超滿足', priority:'建議', checked:false },
+    { name:'醬料（烤肉醬、韓式辣醬）', note:'提前分裝小罐帶去', priority:'必備', checked:false },
+    { name:'鹽、黑胡椒、橄欖油', note:'基礎調味', priority:'必備', checked:false },
+    { name:'冷藏保冷袋 / 冰桶', note:'肉品保鮮，電車不一定有冰箱', priority:'必備', checked:false },
+    { name:'冰塊', note:'保持食材新鮮，飲料冰鎮', priority:'必備', checked:false },
+    { name:'飲料 / 啤酒', note:'烤肉搭配', priority:'建議', checked:false },
+  ]},
+  { id:'cook', cat:'cat-cook', emoji:'🔥', title:'炊具與烤具', items:[
+    { name:'木炭烤爐 或 瓦斯烤爐', note:'二擇一，木炭風味更佳', priority:'必備', checked:false },
+    { name:'木炭 + 引火材', note:'木炭量估好，人均約1kg', priority:'必備', checked:false },
+    { name:'打火機 / 防風火柴', note:'多帶一個備用', priority:'必備', checked:false },
+    { name:'烤肉夾 + 長柄筷', note:'防燙，翻肉必備', priority:'必備', checked:false },
+    { name:'烤網（備用）', note:'公共爐具不一定乾淨', priority:'建議', checked:false },
+    { name:'煮火鍋的鍋子', note:'Vicki 帶', priority:'必備', checked:false },
+    { name:'平底鍋', note:'Vicki 帶，煎烤兩用', priority:'建議', checked:false },
+    { name:'瓦斯爐（小型卡式爐）', note:'Kyle 帶，三瓶瓦斯', priority:'必備', checked:false },
+    { name:'卡式瓦斯罐 x3', note:'Kyle 帶，上次兩罐不夠用', priority:'必備', checked:false },
+    { name:'鍋蓋 / 湯勺', note:'煮鍋配件', priority:'建議', checked:false },
+    { name:'錫箔紙', note:'食材包烤、防沾、清潔爐具', priority:'必備', checked:false },
+    { name:'餐盤 / 碗（戶外用）', note:'輕便塑膠或不鏽鋼', priority:'必備', checked:false },
+    { name:'免洗筷 + 湯匙', note:'方便清洗少', priority:'建議', checked:false },
+    { name:'水桶 / 食用水', note:'洗菜洗手', priority:'必備', checked:false },
+  ]},
+  { id:'safety', cat:'cat-safety', emoji:'🛡️', title:'安全與衛生', items:[
+    { name:'急救包', note:'貼布、消毒液、紗布基本款', priority:'必備', checked:false },
+    { name:'防蚊液 / 電蚊拍', note:'山區蚊蟲多', priority:'必備', checked:false },
+    { name:'滅火器 / 滅火毯', note:'烤火風險管控', priority:'建議', checked:false },
+    { name:'手套（隔熱）', note:'抓鍋拿爐防燙', priority:'必備', checked:false },
+    { name:'濕紙巾 + 乾洗手', note:'野外清潔基本', priority:'必備', checked:false },
+    { name:'垃圾袋（大）', note:'自帶垃圾不留下', priority:'必備', checked:false },
+    { name:'廚房紙巾', note:'擦油、墊食物', priority:'建議', checked:false },
+    { name:'備用藥（腸胃藥、止痛藥）', note:'以防食物不適', priority:'建議', checked:false },
+  ]},
+  { id:'misc', cat:'cat-misc', emoji:'🎒', title:'其他日常與娛樂', items:[
+    { name:'個人盥洗用品', note:'牙刷、毛巾、沐浴乳', priority:'必備', checked:false },
+    { name:'換洗衣物', note:'夜晚變涼多帶一件外套', priority:'必備', checked:false },
+    { name:'洗澡機', note:'Kyle 帶', priority:'建議', checked:false },
+    { name:'更衣帳篷', note:'Kyle 帶，換衣洗澡用', priority:'建議', checked:false },
+    { name:'雨衣 / 折疊傘', note:'山區天氣多變', priority:'建議', checked:false },
+    { name:'折疊椅 x 人數', note:'烤肉時圍坐', priority:'建議', checked:false },
+    { name:'折疊桌', note:'放食材和烤具', priority:'建議', checked:false },
+    { name:'藍牙音響', note:'野外配樂 🎵', priority:'可選', checked:false },
+    { name:'星座/天文APP', note:'遠離市區看星星', priority:'可選', checked:false },
+    { name:'備胎確認 + 胎壓確認', note:'出發前確認電車狀況', priority:'必備', checked:false },
+    { name:'行車記錄器確認', note:'開車安全', priority:'建議', checked:false },
+    { name:'現金備用', note:'山區可能無網路', priority:'建議', checked:false },
+  ]},
+];
+
+const KEY = 'campList_v4';
+let data = (() => { try { const s = localStorage.getItem(KEY); return s ? JSON.parse(s) : null; } catch(e){} return null; })() || JSON.parse(JSON.stringify(DEFAULT));
+let filter = '全部';
+
+function save() { localStorage.setItem(KEY, JSON.stringify(data)); }
+
+// ── Render ────────────────────────────────────────────────────
+function render() {
+  const cont = document.getElementById('categories');
+  cont.innerHTML = '';
+  data.forEach(cat => {
+    const sec = document.createElement('div');
+    sec.className = `section ${cat.cat}`;
+    sec.id = `sec-${cat.id}`;
+
+    const chk = cat.items.filter(it=>it.checked).length;
+    sec.innerHTML = `
+      <div class="section-header" onclick="toggleSec('${cat.id}')">
+        <span class="section-emoji">${cat.emoji}</span>
+        <span class="section-title">${cat.title}</span>
+        <span class="section-count" id="cnt-${cat.id}">${chk}/${cat.items.length}</span>
+      </div>
+      <div class="section-body" id="body-${cat.id}"></div>
+    `;
+    cont.appendChild(sec);
+
+    const body = document.getElementById(`body-${cat.id}`);
+    cat.items.forEach((item, i) => body.appendChild(makeItem(cat.id, i)));
+
+    // Add row
+    const ar = document.createElement('div');
+    ar.className = 'add-item-row';
+    ar.innerHTML = `<span class="add-plus">＋</span> 新增到此分類`;
+    ar.onclick = () => openModal(cat.id);
+    body.appendChild(ar);
+
+    body.style.maxHeight = body.scrollHeight + 'px';
+  });
+  applyFilter(false);
+  updateStats();
+}
+
+function makeItem(catId, idx) {
+  const cat = data.find(c=>c.id===catId);
+  const item = cat.items[idx];
+
+  const wrap = document.createElement('div');
+  wrap.className = 'item-wrap';
+  wrap.id = `w-${catId}-${idx}`;
+
+  const bg = document.createElement('div');
+  bg.className = 'delete-bg';
+  bg.innerHTML = '🗑<br>刪除';
+
+  const row = document.createElement('div');
+  row.className = `item${item.checked?' checked':''}`;
+  row.innerHTML = `
+    <div class="checkbox"><div class="checkmark"></div></div>
+    <div class="item-info">
+      <div class="item-name">${item.name}</div>
+      ${item.note?`<div class="item-note">${item.note}</div>`:''}
+    </div>
+    <span class="priority priority-${item.priority}">${item.priority}</span>
+    <button class="del-btn" onclick="delItem('${catId}',${idx})">×</button>
+  `;
+
+  // Toggle check (ignore del-btn clicks)
+  row.addEventListener('click', e => {
+    if (e.target.closest('.del-btn')) return;
+    item.checked = !item.checked;
+    row.classList.toggle('checked', item.checked);
+    save();
+    updateCnt(catId);
+    updateStats();
+  });
+
+  // Touch swipe left to delete
+  let sx=0,sy=0,swiping=false;
+  row.addEventListener('touchstart', e=>{ sx=e.touches[0].clientX; sy=e.touches[0].clientY; swiping=false; }, {passive:true});
+  row.addEventListener('touchmove', e=>{
+    const dx=e.touches[0].clientX-sx, dy=e.touches[0].clientY-sy;
+    if(!swiping && Math.abs(dy)>Math.abs(dx)) return;
+    swiping=true;
+    if(dx<0){ row.style.transform=`translateX(${Math.max(dx,-90)}px)`; bg.classList.toggle('show',-dx>45); }
+  },{passive:true});
+  row.addEventListener('touchend', ()=>{
+    const t=parseFloat(row.style.transform||'0');
+    if(t<-70){ delItem(catId,idx); }
+    else { row.style.transform=''; bg.classList.remove('show'); }
+  });
+
+  wrap.appendChild(bg);
+  wrap.appendChild(row);
+  return wrap;
+}
+
+function delItem(catId, idx) {
+  const cat = data.find(c=>c.id===catId);
+  cat.items.splice(idx,1);
+  save();
+  render();
+}
+
+function updateCnt(catId) {
+  const cat = data.find(c=>c.id===catId);
+  const el = document.getElementById(`cnt-${catId}`);
+  if(el) el.textContent = `${cat.items.filter(it=>it.checked).length}/${cat.items.length}`;
+}
+
+function updateStats() {
+  let total=0,checked=0;
+  data.forEach(cat=>cat.items.forEach(it=>{total++;if(it.checked)checked++;}));
+  const pct=total?Math.round(checked/total*100):0;
+  document.getElementById('statTotal').textContent=total;
+  document.getElementById('statChecked').textContent=checked;
+  document.getElementById('statLeft').textContent=total-checked;
+  document.getElementById('progressPct').textContent=pct+'%';
+  document.getElementById('progressCircle').style.background=
+    `conic-gradient(var(--gold) ${pct*3.6}deg,rgba(255,255,255,.1) ${pct*3.6}deg)`;
+}
+
+function toggleSec(catId) {
+  const sec=document.getElementById(`sec-${catId}`);
+  const body=document.getElementById(`body-${catId}`);
+  sec.classList.toggle('collapsed');
+  if(!sec.classList.contains('collapsed')) body.style.maxHeight=body.scrollHeight+'px';
+}
+
+// ── Filter ────────────────────────────────────────────────────
+function filterItems(p) {
+  filter=p;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.toggle('active',b.textContent.includes(p)||(p==='全部'&&b.textContent==='全部')));
+  applyFilter(true);
+}
+
+function applyFilter(recalc) {
+  data.forEach(cat=>{
+    let vis=0;
+    cat.items.forEach((item,i)=>{
+      const el=document.getElementById(`w-${cat.id}-${i}`);
+      if(!el)return;
+      const show=filter==='全部'||item.priority===filter;
+      el.classList.toggle('hidden',!show);
+      if(show)vis++;
+    });
+    const sec=document.getElementById(`sec-${cat.id}`);
+    if(sec)sec.classList.toggle('all-hidden',vis===0);
+    if(recalc&&sec&&!sec.classList.contains('collapsed')){
+      const b=document.getElementById(`body-${cat.id}`);
+      if(b){b.style.maxHeight='none';setTimeout(()=>b.style.maxHeight=b.scrollHeight+'px',10);}
+    }
+  });
+}
+
+// ── Modal ─────────────────────────────────────────────────────
+function openModal(catId) {
+  const sel=document.getElementById('inputCat');
+  sel.innerHTML=data.map(c=>`<option value="${c.id}"${c.id===catId?' selected':''}>${c.emoji} ${c.title}</option>`).join('');
+  document.getElementById('inputName').value='';
+  document.getElementById('inputNote').value='';
+  document.getElementById('inputPriority').value='建議';
+  document.getElementById('modalTitle').textContent=catId?`➕ 新增到「${data.find(c=>c.id===catId).title}」`:'➕ 新增裝備';
+  document.getElementById('modalOverlay').classList.add('open');
+  setTimeout(()=>document.getElementById('inputName').focus(),350);
+}
+
+function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
+
+document.getElementById('modalOverlay').addEventListener('click', e=>{ if(e.target===document.getElementById('modalOverlay'))closeModal(); });
+document.getElementById('inputName').addEventListener('keydown', e=>{ if(e.key==='Enter')submitItem(); });
+
+function submitItem() {
+  const name=document.getElementById('inputName').value.trim();
+  const inp=document.getElementById('inputName');
+  if(!name){ inp.style.borderColor='#c84040'; inp.focus(); return; }
+  inp.style.borderColor='';
+  const catId=document.getElementById('inputCat').value;
+  const note=document.getElementById('inputNote').value.trim();
+  const priority=document.getElementById('inputPriority').value;
+  data.find(c=>c.id===catId).items.push({name,note,priority,checked:false});
+  save();
+  closeModal();
+  render();
+  setTimeout(()=>{
+    const sec=document.getElementById(`sec-${catId}`);
+    if(sec)sec.scrollIntoView({behavior:'smooth',block:'nearest'});
+  },150);
+}
+
+function resetChecks() {
+  if(!confirm('確定重置所有勾選？（項目不會被刪除）'))return;
+  data.forEach(cat=>cat.items.forEach(it=>it.checked=false));
+  save(); render();
+}
+
+render();
+</script>
+</body>
+</html>
